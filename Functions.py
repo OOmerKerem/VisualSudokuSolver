@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import imutils
 
 def roi_points(pts) :
 
@@ -25,8 +26,8 @@ def BirdsEyeView (image, pts):
     maxWidth = max(int(width1), int(width2))
 
     height1 = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
-	height2 = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
-	maxHeight = max(int(height1), int(height2))
+    height2 = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+    maxHeight = max(int(height1), int(height2))
 
     dst = np.array([
 		[0, 0],
@@ -34,7 +35,36 @@ def BirdsEyeView (image, pts):
 		[maxWidth - 1, maxHeight - 1],
 		[0, maxHeight - 1]], dtype = "float32")
 
-	M = cv2.getPerspectiveTransform(rect, dst)
-	warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
+    M = cv2.getPerspectiveTransform(roi, dst)
+    warped = cv2.warpPerspective(image, M, (maxWidth, maxHeight))
 
-	return warped
+    return warped
+
+
+def SudokuFinder (image):
+    kernel = (7, 7)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, kernel, 3)
+    thresholded = cv2.adaptiveThreshold(blur, 255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                        cv2.THRESH_BINARY, 11, 2)
+    thresholded = cv2.bitwise_not(thresholded)
+
+    contours = cv2.findContours(thresholded.copy(), cv2.RETR_EXTERNAL,
+                                cv2.CHAIN_APPROX_SIMPLE)
+    contours = imutils.grab_contours(contours)
+    contours = sorted(contours, key = cv2.contourArea, reverse=True)
+
+    Vertice = None
+
+    for c in contours :
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+
+        if len(approx) == 4:
+            Vertice = approx
+            break
+
+    sudoku = BirdsEyeView(image, Vertice.reshape(4, 2))
+    warped = BirdsEyeView(gray, Vertice.reshape(4, 2))
+
+    return (puzzle, warped)
